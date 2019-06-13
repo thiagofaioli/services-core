@@ -504,6 +504,41 @@ class CommonWrapper
     common_id
   end
 
+  def index_user_via_proxy(resource)
+    return unless resource.id.present?
+    @api_key = proxy_api_key
+    uri = services_endpoint[:proxy_service]
+
+    uri.path = if resource.common_id.present?
+                 '/v1/users/' + resource.common_id
+               else
+                 '/v1/users'
+               end
+    response = request(
+      uri.to_s,
+      body: {
+        user:
+        resource.common_index
+      }.to_json,
+      action: resource.common_id.present? ? :patch : :post,
+      headers: {'Content-Type' => 'application/json'},
+    ).run
+
+    if response.success?
+      json = ActiveSupport::JSON.decode(response.body)
+      common_id = json.try(:[], 'address_id')
+    else
+      Rails.logger.info(response.body)
+      common_id = find_address(resource.id)
+    end
+
+    resource.update_column(
+      :common_id, common_id
+    ) if common_id.present?
+
+    common_id
+  end
+
   def index_address(resource)
     return unless resource.id.present?
 

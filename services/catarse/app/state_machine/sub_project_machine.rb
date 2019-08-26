@@ -64,6 +64,7 @@ class SubProjectMachine
     transition from: :deleted, to: %i[draft]
     transition from: :draft, to: %i[deleted online]
     transition from: :online, to: %i[draft deleted successful rejected]
+    transition from: [:successful, :failed], to: :deleted
   end
 
   def can_push_to_draft?

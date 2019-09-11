@@ -24,6 +24,8 @@ require 'common_models/models/platform_api_key'
 require 'common_models/models/temp_login_api_key'
 require 'common_models/models/user_api_key'
 require 'common_models/models/user_role'
+require 'common_models/models/credit_card'
+require 'common_models/models/processed_payment'
 
 
 module CommonModels

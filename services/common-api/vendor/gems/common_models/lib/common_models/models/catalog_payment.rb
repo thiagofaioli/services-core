@@ -4,7 +4,9 @@ module CommonModels
 
     store_accessor :data,
       :amount,
-      :card_id
+      :card_id,
+      :customer,
+      :payment_method
 
     belongs_to :platform
     belongs_to :project
@@ -22,6 +24,22 @@ module CommonModels
       joins(left_join_with_processed_payments)
         .where('payment_service.processed_payments.id IS NULL AND payment_service.catalog_payments.created_at >= ?', Date.today)
     }
+
+    def is_bank_slip?
+      payment_method == 'boleto'
+    end
+
+    def is_international?
+      data['is_international']
+    end
+
+    def customer_type
+      if customer['document_number'].try(:size) == 14
+        'corporation'
+      else
+        'individual'
+      end
+    end
 
     def card_hash
       CreditCard.find_by(id: card_id).try(:card_hash)

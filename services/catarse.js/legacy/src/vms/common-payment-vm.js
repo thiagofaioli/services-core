@@ -34,14 +34,16 @@ const updateUser = user => m.request({
     config: h.setCsrfToken
 });
 
-const setNewCreditCard = (creditCardFields) => {
-    const creditCard = new window.PagarMe.creditCard();
-    creditCard.cardHolderName = creditCardFields.name();
-    creditCard.cardExpirationMonth = creditCardFields.expMonth();
-    creditCard.cardExpirationYear = creditCardFields.expYear();
-    creditCard.cardNumber = creditCardFields.number();
-    creditCard.cardCVV = creditCardFields.cvv();
-    return creditCard;
+const buildCreditCardHash = (creditCardFields) => {
+    const cardMonth = reditCardFields.expMonth().toString().padStart(2, '0')
+    const cardYear = creditCardFields.expYear().toString().substr(-2, 2)
+
+    return {
+        card_number: creditCardFields.number(),
+        card_holder_name: creditCardFields.name(),
+        card_expiration_date: `${cardMonth}${cardYear}`,
+        card_cvv: creditCardFields.cvv()
+    }
 };
 
 const userPayload = (customer, address) => ({
@@ -164,10 +166,6 @@ const sendCreditCardPayment = (selectedCreditCard, fields, commonData, addVM) =>
 
     const meta = _.first(document.querySelectorAll('[name=pagarme-encryption-key]'));
     const encryptionKey = meta.getAttribute('content');
-
-    window.PagarMe.encryption_key = encryptionKey;
-    const card = setNewCreditCard(fields.creditCardFields);
-
     const customer = fields.fields;
     const address = customer.address().getFields();
     const phoneDdd = address.phone_number ? address.phone_number.match(/\(([^)]*)\)/)[1] : null;
@@ -175,7 +173,9 @@ const sendCreditCardPayment = (selectedCreditCard, fields, commonData, addVM) =>
     const addressState = address.state_id ? _.findWhere(addVM.states(), { id: address.state_id }) : address.address_state;
     const addressCountry = _.findWhere(addVM.countries(), { id: address.country_id }) || {};
 
-    card.generateHash((cardHash) => {
+    pagarme.client.connect({ encryption_key: encryptionKey })
+        .then(client => client.security.encrypt(buildCreditCardHash))
+        .then(card_hash => {
         const payload = {
             subscription: true,
             anonymous: customer.anonymous(),
@@ -234,11 +234,12 @@ const sendCreditCardPayment = (selectedCreditCard, fields, commonData, addVM) =>
         };
 
         updateUser(userPayload(customer, address))
-            .then(() => processCreditCard(cardHash, fields))
+            .then(() => processCreditCard(card_hash, fields))
             .then(pay)
             .then(getPaymentInfoUntilNoError(payload.payment_method, Boolean(commonData.subscription_id)))
             .catch(displayError(fields));
-    });
+        }
+    );
 };
 
 const sendSlipPayment = (fields, commonData) => {
